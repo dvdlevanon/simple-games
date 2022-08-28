@@ -1,0 +1,324 @@
+<html>
+	<head>
+		<style>
+			body {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-direction: column;
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				overflow: hidden;
+			}
+			#options {
+				flex-direction: column;
+				display: flex;
+				padding: 10px;
+				align-items: center;
+			}
+			#options .inputs {
+				display: flex;
+				padding: 10px;
+			}
+			#options button {
+				width: 300px;
+				height: 25px;
+			}
+			#options .inputs .field {
+				padding: 10px;
+				display: flex;
+				justify-content: center;
+				flex-direction: row;
+			}
+			#options .inputs .field input {
+				width: 50px;
+				height: 25px;
+			}
+			#options .inputs .field span {
+				padding: 0px 10px 0px 0px;
+				display: inline-flex;
+				align-items: center;
+			}
+			#canvas {
+				background: gray;
+				color: white;
+				border: 1px solid black;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="options">
+			<div class="inputs">
+				<div class="field">
+					<span>Number of pairs:</span><input type="number" id="pairs" value="10" min="1" max="50" />
+				</div>
+			</div>
+			<button id="start">Start New Game</button>
+		</div>
+		<canvas id="canvas" width="600" height="600" />
+		<script>
+			const TILES_GAP = 10
+			const EMPTY_CARD = 0
+			const canvas = document.getElementById("canvas");
+			const canvas2d = canvas.getContext("2d");
+			
+			let frameWidth = canvas.width;
+			let frameHeight = canvas.height;
+			let numberOfPairs = 0;
+			let tiles = []
+			let rows = 0;
+			let columns = 0;
+			let openedCards = []
+			
+			function initialize() {
+				tiles = []
+				
+				dimensions = calculateDimensions(numberOfPairs * 2);
+				rows = dimensions.rows
+				columns = dimensions.columns
+				
+				for (let y = 0; y < rows; y++) {
+					let row = []
+					
+					for (let x = 0; x < columns; x++) {
+						let cardNumber = Math.floor(((y * columns) + x) / 2) + 1
+						
+						if (cardNumber > numberOfPairs) {
+							row.push(EMPTY_CARD);
+						} else {
+							row.push(cardNumber);
+						}
+					}
+					
+					tiles.push(row);
+				}
+			}
+			
+			function calculateDimensions(numberOfCards) {
+				let square = Math.sqrt(numberOfCards);
+				let squareInt = Math.floor(square);
+				let rows = squareInt;
+				let columns = squareInt;
+				
+				if (square != squareInt) {
+					if (square - squareInt > 0.5) {
+						rows = rows + 1;
+						columns = columns + 1;
+					} else {
+						rows = rows + 1;
+					}
+				}
+				
+				while ((rows * columns) - numberOfCards > 1) {
+					rows = rows - 1;
+					columns = columns + 1;
+				}
+				
+				if (rows > columns) {
+					let temp = rows;
+					rows = columns;
+					columns = temp;
+				}
+				
+				return {
+					columns: columns,
+					rows: rows
+				}
+			}
+			
+			function randomInt(max) {
+				return Math.floor(Math.random() * max);
+			}
+						
+			function shuffle() {
+				for (let i = 0; i < 10000; i++) {
+					let card1 = randomInt(numberOfPairs * 2);
+					let card2 = randomInt(numberOfPairs * 2);
+					let card1X = Math.floor(card1 % columns);
+					let card1Y = Math.floor(card1 / columns);
+					let card2X = Math.floor(card2 % columns);
+					let card2Y = Math.floor(card2 / columns);
+					
+					let temp = tiles[card1Y][card1X];
+					tiles[card1Y][card1X] = tiles[card2Y][card2X]
+					tiles[card2Y][card2X] = temp
+				}
+			}
+			
+			function tileWidth() {
+				return (frameWidth - (TILES_GAP * (columns + 1))) / columns;
+			}
+			
+			function tileHeight() {
+				return (frameHeight - (TILES_GAP * (rows + 1))) / rows;
+			}
+			
+			function tileLeft(x) {
+				return (x * tileWidth()) + ((x + 1) * TILES_GAP);
+			}
+			
+			function tileTop(y) {
+				return (y * tileHeight()) + ((y + 1) * TILES_GAP);
+			}
+			
+			function drawTile(x, y) {
+				if (isNotACard(x, y)) {
+					return;
+				}
+				
+				canvas2d.fillStyle = "black";
+				canvas2d.fillRect(tileLeft(x), tileTop(y), tileWidth(), tileHeight());
+					
+				if (isOpen(x, y)) {
+					canvas2d.font = "60px David";
+					canvas2d.fillStyle = "white";
+					canvas2d.textAlign = "center";
+					canvas2d.textBaseline = "middle";
+					let cardNumber = Math.abs(tiles[y][x]);
+					
+					canvas2d.fillText(cardNumber, tileLeft(x) + (tileWidth() / 2), tileTop(y) + (tileHeight() / 2));
+				}
+			}
+			
+			function draw() {
+				canvas2d.clearRect(0, 0, frameWidth, frameHeight);
+				
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						drawTile(x, y);
+					}
+				}
+			}
+			
+			function isTurnFinished() {
+				return openedCards.length > 1;
+			}
+			
+			function isOpen(x, y) {
+				return tiles[y][x] < 0;
+			}
+			
+			function isNotACard(x, y) {
+				return tiles[y][x] == EMPTY_CARD;
+			}
+			
+			function openCard(x, y) {
+				openedCards.push({
+					x: x,
+					y: y
+				});
+				
+				tiles[y][x] = 0 - tiles[y][x];
+			}
+			
+			function closeOpenCards() {
+				tiles[openedCards[0].y][openedCards[0].x] = Math.abs(tiles[openedCards[0].y][openedCards[0].x]);
+				tiles[openedCards[1].y][openedCards[1].x] = Math.abs(tiles[openedCards[1].y][openedCards[1].x]);
+				openedCards = []
+			}
+			
+			function isMatch() {
+				if (!isTurnFinished()) {
+					return false;
+				}
+				
+				let firstCard = openedCards[0]
+				let secondCard = openedCards[1]
+				
+				return tiles[firstCard.y][firstCard.x] == tiles[secondCard.y][secondCard.x]
+			}
+						
+			function check() {
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						if (isNotACard(x, y)) {
+							continue;
+						}
+						
+						if (!isOpen(x, y)) {
+							return;
+						}
+					}
+				}
+				
+				setTimeout(function() {
+					alert("Win!");
+				}, 1);
+			}
+
+			function finishTurn() {
+				if (!isMatch()) {
+					setTimeout(function() {
+						closeOpenCards();
+						draw();
+					}, 1000);
+				} else {
+					openedCards = []
+					check();
+				}
+			}
+			
+			function handleClick(event) {
+				if (isTurnFinished()) {
+					return;
+				}
+				
+				let rect = event.target.getBoundingClientRect();
+				let x = event.clientX - rect.left;
+				let y = event.clientY - rect.top;
+				let tileX = Math.floor(x / (frameWidth / columns));
+				let tileY = Math.floor(y / (frameHeight / rows));
+				
+				if (isNotACard(tileX, tileY)) {
+					return;
+				}
+				
+				if (isOpen(tileX, tileY)) {
+					return;
+				}
+				
+				openCard(tileX, tileY);
+				draw();
+				
+				if (isTurnFinished()) {
+					finishTurn();
+				}
+			}
+			
+			function startNewGame() {
+				numberOfPairs = document.getElementById("pairs").valueAsNumber
+				
+				if (numberOfPairs < 0 || numberOfPairs > 100) {
+					alert("Invalid number of pairs");
+					return;
+				}
+				
+				initialize();
+				shuffle();
+				
+				setTimeout(function() {
+					canvas.height = rows * 150;
+					canvas.width = columns * 150;
+					frameWidth = canvas.width
+					frameHeight = canvas.height
+					draw();
+				}, 1);
+			}
+			
+			function main() {
+				startNewGame();
+				
+				document.getElementById("start").onclick = function(event) {
+					startNewGame();
+				};
+				
+				canvas.onclick = function(event) {
+					handleClick(event);
+				};
+			}
+			
+			main();
+		</script>
+	</body>
+</html>

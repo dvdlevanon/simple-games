@@ -1,0 +1,281 @@
+<html>
+	<head>
+		<style>
+			body {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-direction: column;
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				overflow: hidden;
+			}
+			#options {
+				flex-direction: column;
+				display: flex;
+				padding: 10px;
+				align-items: center;
+			}
+			#options .inputs {
+				display: flex;
+				padding: 10px;
+			}
+			#options button {
+				width: 300px;
+				height: 25px;
+			}
+			#options .inputs .field {
+				padding: 10px;
+				display: flex;
+				justify-content: center;
+				flex-direction: row;
+			}
+			#options .inputs .field input {
+				width: 50px;
+				height: 25px;
+			}
+			#options .inputs .field span {
+				padding: 0px 10px 0px 0px;
+				display: inline-flex;
+				align-items: center;
+			}
+			#canvas {
+				background: gray;
+				color: white;
+				border: 1px solid black;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="options">
+			<div class="inputs">
+				<div class="field">
+					<span>Rows:</span><input type="number" id="rows" value="4" />
+				</div>
+				<div class="field">
+					<span>Columns:</span><input type="number" id="columns" value="4"/>
+				</div>
+			</div>
+			<button id="start">Start New Game</button>
+		</div>
+		<canvas id="canvas" width="600" height="600" />
+		<script>
+			const EMPTY_TILE = 0
+			const TILES_GAP = 10
+			const canvas = document.getElementById("canvas");
+			const canvas2d = canvas.getContext("2d");
+			
+			let frameWidth = canvas.width;
+			let frameHeight = canvas.height;
+			let tiles = []
+			let rows = 0;
+			let columns = 0;
+			
+			function initialize() {
+				tiles = []
+				
+				for (let y = 0; y < rows; y++) {
+					let row = []
+					
+					for (let x = 0; x < columns; x++) {
+						if (isLastTile(x, y)) {
+							row.push(EMPTY_TILE);
+						} else {
+							row.push(tileCorrectNumber(x, y));
+						}
+					}
+					
+					tiles.push(row)
+				}
+				
+				document.getElementById("rows").value = rows;
+				document.getElementById("columns").value = columns;
+			}
+			
+			function isLastTile(x, y) {
+				return  (y == (rows - 1) && x == (columns - 1));
+			}
+			
+			function tileCorrectNumber(x, y) {
+				return (y * columns) + (x + 1);
+			}
+			
+			function check() {
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						if (isLastTile(x, y)) {
+							break;
+						}
+						
+						if (tiles[y][x] != tileCorrectNumber(x, y)) {
+							return;
+						}
+					}
+				}
+				
+				setTimeout(function() {
+					alert("Win!");
+				}, 1);
+			}
+			
+			function checkBounds(x, y) {
+				return (x >= 0 && x < columns && y >= 0 && y < rows);
+			}
+			
+			function getTileValue(x, y) {
+				if (!checkBounds(x, y)) {
+					return -1;
+				}
+				
+				return tiles[y][x]
+			}
+			
+			function swap(x1, y1, x2, y2) {
+				let temp = tiles[y1][x1];
+				tiles[y1][x1] = tiles[y2][x2];
+				tiles[y2][x2] = temp;
+			}
+			
+			function move(x, y) {
+				if (!checkBounds(x, y)) {
+					return false;
+				}
+				
+				if (getTileValue(x - 1, y) == EMPTY_TILE) {
+					swap(x, y, x - 1, y);
+				} else if (getTileValue(x + 1, y) == EMPTY_TILE) {
+					swap(x, y, x + 1, y);
+				} else if (getTileValue(x, y + 1) == EMPTY_TILE) {
+					swap(x, y, x, y + 1);
+				} else if (getTileValue(x, y - 1) == EMPTY_TILE) {
+					swap(x, y, x, y - 1);
+				}
+				
+				return true;
+			}
+			
+			function randomBoolean() {
+				return Math.floor(Math.random() * 2) == 0;
+			}
+
+			function shuffle() {
+				let emptyTileX = columns - 1;
+				let emptyTileY = rows - 1;
+				
+				for (let i = 0; i < 10000; i++) {
+					let offset = randomBoolean() ? -1 : 1;
+					let verticalDirection = randomBoolean();
+					
+					let movingTileX = emptyTileX;
+					let movingTileY = emptyTileY;
+					
+					if (verticalDirection) {
+						movingTileY = emptyTileY + offset;
+					} else {
+						movingTileX = emptyTileX + offset;
+					}
+					
+					if (!move(movingTileX, movingTileY)) {
+						continue;
+					}
+					
+					emptyTileX = movingTileX;
+					emptyTileY = movingTileY;
+				}
+			}
+			
+			function tileWidth() {
+				return (frameWidth - (TILES_GAP * (columns + 1))) / columns;
+			}
+			
+			function tileHeight() {
+				return (frameHeight - (TILES_GAP * (rows + 1))) / rows;
+			}
+			
+			function tileLeft(x) {
+				return (x * tileWidth()) + ((x + 1) * TILES_GAP);
+			}
+			
+			function tileTop(y) {
+				return (y * tileHeight()) + ((y + 1) * TILES_GAP);
+			}
+			
+			function drawTile(x, y) {
+				canvas2d.fillStyle = "black";
+				canvas2d.fillRect(tileLeft(x), tileTop(y), tileWidth(), tileHeight());
+				
+				canvas2d.font = "60px David";
+				canvas2d.fillStyle = "white";
+				canvas2d.textAlign = "center";
+				canvas2d.textBaseline = "middle";
+				canvas2d.fillText(tiles[y][x], tileLeft(x) + (tileWidth() / 2), tileTop(y) + (tileHeight() / 2));
+			}
+			
+			function draw() {
+				canvas2d.clearRect(0, 0, frameWidth, frameHeight);
+				
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						if (tiles[y][x] == EMPTY_TILE) {
+							continue;
+						}
+						
+						drawTile(x, y);
+					}
+				}
+			}
+			
+			function handleClick(event) {
+				let rect = event.target.getBoundingClientRect();
+				let x = event.clientX - rect.left;
+				let y = event.clientY - rect.top;
+				let tileX = Math.floor(x / (frameWidth / columns));
+				let tileY = Math.floor(y / (frameHeight / rows));
+				
+				if (tiles[tileY][tileX] == EMPTY_TILE) {
+					return;
+				}
+				
+				move(tileX, tileY);
+				draw();
+				check();
+			}
+			
+			function startNewGame() {
+				rows = document.getElementById("rows").valueAsNumber
+				columns = document.getElementById("columns").valueAsNumber
+				
+				if (rows < 0 || rows > 100 || columns < 0 || columns > 100) {
+					alert("Invalid number of rows or columns");
+					return;
+				}
+				
+				initialize();
+				shuffle();
+				
+				setTimeout(function() {
+					canvas.height = rows * 100;
+					canvas.width = columns * 100;
+					frameWidth = canvas.width
+					frameHeight = canvas.height
+					draw();
+				}, 1);
+			}
+			
+			function main() {
+				startNewGame();
+				
+				document.getElementById("start").onclick = function(event) {
+					startNewGame();
+				};
+				
+				canvas.onclick = function(event) {
+					handleClick(event);
+				};
+			}
+			
+			main();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,224 @@
+<html>
+	<head>
+		<style>
+			body {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-direction: column;
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				overflow: hidden;
+			}
+			#canvas {
+				background: gray;
+				color: white;
+				border: 1px solid black;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas" width="600" height="600" />
+		<script>
+			const TILES_GAP = 3;
+			const BLOCK_TILE = 0;
+			const NO_NUMBER = -1;
+			const canvas = document.getElementById("canvas");
+			const canvas2d = canvas.getContext("2d");
+			
+			let frameWidth = canvas.width;
+			let frameHeight = canvas.height;
+			let tiles = []
+			let rows = 0;
+			let columns = 0;
+			
+			function initializeNumbers() {
+				for (let y = 0; y < rows; y++) {
+					let row = []
+					
+					for (let x = 0; x < columns; x++) {
+						// row.push(randomInt(9) + 1);
+						row.push(NO_NUMBER);
+					}
+					
+					tiles.push(row)
+				}
+			}
+			
+			function initializeBorders() {
+				for (let y = 0; y < rows; y++) {
+					tiles[y][0] = BLOCK_TILE;
+				}
+				
+				for (let x = 0; x < columns; x++) {
+					tiles[0][x] = BLOCK_TILE;
+				}
+			}
+			
+			function generateIsland(x, y) {
+				if (isOutside(x, y)) {
+					return;
+				}
+				
+				if (shouldNotBlock(x, y)) {
+					return;
+				}
+				
+				tiles[y][x] = BLOCK_TILE;
+				
+				if (randomBoolean()) {
+					generateIsland(x + randomInt(3) - 1, y);
+				} else {
+					generateIsland(x, y + randomInt(3) - 1);
+				}
+			}
+			
+			function isOutside(x, y) {
+				return x < 0 || x >= rows || y < 0 || y >= columns;
+			}
+			
+			function isBlock(x, y) {
+				return tiles[y][x] == BLOCK_TILE;
+			}
+			
+			function shouldNotBlock(x, y) {
+				return isSurroundedBy3Blocks(x + 1, y) ||
+					isSurroundedBy3Blocks(x - 1, y) ||
+					isSurroundedBy3Blocks(x, y + 1) ||
+					isSurroundedBy3Blocks(x, y - 1);
+			}
+			
+			function isSurroundedBy3Blocks(x, y) {
+				if (isOutside(x, y)) {
+					return false;
+				}
+				
+				let numOfSourroundBlocks = 0;
+				
+				if (!isOutside(x + 1, y) && isBlock(x + 1, y)) {
+					numOfSourroundBlocks = numOfSourroundBlocks + 1;
+				}
+				
+				if (!isOutside(x - 1, y) && isBlock(x - 1, y)) {
+					numOfSourroundBlocks = numOfSourroundBlocks + 1;
+				}
+				
+				if (!isOutside(x, y + 1) && isBlock(x, y + 1)) {
+					numOfSourroundBlocks = numOfSourroundBlocks + 1;
+				}
+				
+				if (!isOutside(x, y - 1) && isBlock(x, y - 1)) {
+					numOfSourroundBlocks = numOfSourroundBlocks + 1;
+				}
+				
+				return numOfSourroundBlocks >= 2;
+			}
+			
+			function generateIslands() {
+				for (let i = 0; i < 10; i++) {
+					generateIsland(randomInt(columns), randomInt(rows), 0);
+					// if (randomBoolean()) {
+					// 	if (randomBoolean()) {
+					// 		generateIsland(1, randomInt(rows), 0);
+					// 	} else {
+					// 		generateIsland(columns - 1, randomInt(rows), 0);
+					// 	}
+					// } else {
+					// 	if (randomBoolean()) {
+					// 		generateIsland(randomInt(columns), 1, 0);
+					// 	} else {
+					// 		generateIsland(randomInt(columns), rows - 1, 0);
+					// 	}
+					// }
+				}
+			}
+			
+			function initialize() {
+				tiles = []
+				
+				initializeNumbers();
+				generateIslands();
+				initializeBorders();
+			}
+			
+			function tileWidth() {
+				return (frameWidth - (TILES_GAP * (columns + 1))) / columns;
+			}
+			
+			function tileHeight() {
+				return (frameHeight - (TILES_GAP * (rows + 1))) / rows;
+			}
+			
+			function tileLeft(x) {
+				return (x * tileWidth()) + ((x + 1) * TILES_GAP);
+			}
+			
+			function tileTop(y) {
+				return (y * tileHeight()) + ((y + 1) * TILES_GAP);
+			}
+			
+			function drawTile(x, y) {
+				if (tiles[y][x] == BLOCK_TILE) {
+					canvas2d.fillStyle = "white";
+					canvas2d.fillRect(tileLeft(x), tileTop(y), tileWidth(), tileHeight());
+					return;
+				}
+				
+				if (tiles[y][x] == NO_NUMBER) {
+					canvas2d.fillStyle = "#AAA";
+					canvas2d.fillRect(tileLeft(x), tileTop(y), tileWidth(), tileHeight());
+					return;
+				}
+				
+				canvas2d.fillStyle = "black";
+				canvas2d.fillRect(tileLeft(x), tileTop(y), tileWidth(), tileHeight());
+				
+				canvas2d.font = "60px David";
+				canvas2d.fillStyle = "white";
+				canvas2d.textAlign = "center";
+				canvas2d.textBaseline = "middle";
+				canvas2d.fillText(tiles[y][x], tileLeft(x) + (tileWidth() / 2), tileTop(y) + (tileHeight() / 2));
+			}
+			
+			function draw() {
+				canvas2d.clearRect(0, 0, frameWidth, frameHeight);
+				
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						drawTile(x, y);
+					}
+				}
+			}
+			
+			function randomInt(max) {
+				return Math.floor(Math.random() * max);
+			}
+			
+			function randomBoolean() {
+				return Math.floor(Math.random() * 2) == 0;
+			}
+			
+			function startNewGame() {
+				rows = 10;
+				columns = 10;
+				
+				initialize();
+				
+				setTimeout(function() {
+					canvas.height = rows * 80;
+					canvas.width = columns * 80;
+					frameWidth = canvas.width
+					frameHeight = canvas.height
+					draw();
+				}, 1);
+			}
+			
+			function main() {
+				startNewGame();
+			}
+			
+			main();
+		</script>
+	</body>
+</html>

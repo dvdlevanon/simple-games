@@ -1,0 +1,337 @@
+<html>
+	<head>
+		<style>
+			body {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-direction: column;
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				overflow: hidden;
+			}
+			#options {
+				flex-direction: column;
+				display: flex;
+				padding: 10px;
+				align-items: center;
+			}
+			#options .inputs {
+				display: flex;
+				padding: 10px;
+			}
+			#options button {
+				width: 300px;
+				height: 25px;
+			}
+			#options .inputs .field {
+				padding: 10px;
+				display: flex;
+				justify-content: center;
+				flex-direction: row;
+			}
+			#options .inputs .field input {
+				width: 50px;
+				height: 25px;
+			}
+			#options .inputs .field span {
+				padding: 0px 10px 0px 0px;
+				display: inline-flex;
+				align-items: center;
+			}
+			#canvas {
+				background: gray;
+				color: white;
+				border: 1px solid black;
+			}
+			#score {
+				cursor: default;
+				font-size: 40px;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="options">
+			<div class="inputs">
+				<div class="field">
+					<span>Speed:</span><input type="number" id="speed" value="50" min="1" max="100" />
+					<span>Crumbles:</span><input type="number" id="crumbles" value="1" min="1" max="10" />
+				</div>
+			</div>
+			<button id="start">Start New Game</button>
+		</div>
+		<canvas id="canvas" width="600" height="600"></canvas>
+		<span id="score">0</span>
+		<script>
+			const INITIAL_SNAKE_SIZE = 10;
+			const POINT_WIDTH = 10;
+			const POINT_HEIGHT = 10;
+			const canvas = document.getElementById("canvas");
+			const canvas2d = canvas.getContext("2d");
+			
+			let frameWidth = canvas.width;
+			let frameHeight = canvas.height;
+			let snake = []
+			let rows = 0;
+			let columns = 0;
+			let directionX = 0;
+			let directionY = 0;
+			let crumbles = []
+			let speed = 50;
+			let alreadyMoved = false;
+			let score = 0;
+			
+			function initializeSnake(snakeLength) {
+				snake = []
+				let centerX = Math.floor(columns / 2);
+				let centerY = Math.floor(rows / 2);
+				
+				for (let i = 0; i < snakeLength; i++) {
+					snake.push({
+						x: centerX - i,
+						y: centerY
+					})
+				}
+			}
+			
+			function initializeCrumbles(crumblesCount) {
+				crumbles = []
+				for (let i = 0; i < crumblesCount; i++) {
+					createNewCrumble();
+				}
+			}
+			
+			function createNewCrumble() {
+				crumbleX = randomInt(columns);
+				crumbleY = randomInt(rows);
+				
+				while (isSnake(crumbleX, crumbleY) || isCrumble(crumbleX, crumbleY)) {
+					crumbleX = randomInt(columns);
+					crumbleY = randomInt(rows);
+				}
+				
+				crumbles.push({
+					x: crumbleX,
+					y: crumbleY
+				})
+			}
+			
+			function removeCrumble(x, y) {
+				let crumbleIndex = -1;
+				
+				for (let i = 0; i < crumbles.length; i++) {
+					if (crumbles[i].x == x && crumbles[i].y == y) {
+						crumbleIndex = i;
+					}
+				}
+				
+				if (crumbleIndex == -1) {
+					return;
+				}
+				
+				crumbles.splice(crumbleIndex, 1);
+			}
+			
+			function makeSnakeLonger(x, y) {
+				snake.push({
+					x: x,
+					y: y
+				})
+			}
+			
+			function initialize(snakeLength, crumblesCount) {
+				changeScore(0);
+				initializeSnake(snakeLength);
+				initializeCrumbles(crumblesCount);
+			}
+			
+			function randomInt(max) {
+				return Math.floor(Math.random() * max);
+			}
+			
+			function pointLeft(x) {
+				return x * POINT_WIDTH;
+			}
+			
+			function pointTop(y) {
+				return y * POINT_HEIGHT;
+			}
+			
+			function drawSnake() {
+				for (let i = 0; i < snake.length; i++) {
+					canvas2d.fillStyle = "black";
+					canvas2d.fillRect(pointLeft(snake[i].x) + 1, pointTop(snake[i].y) + 1, POINT_WIDTH - 1, POINT_HEIGHT - 1);
+				}
+			}
+			
+			function drawCrumbles() {
+				for (let i = 0; i < crumbles.length; i++) {
+					canvas2d.fillStyle = "black";
+					canvas2d.fillRect(pointLeft(crumbles[i].x) + 1, pointTop(crumbles[i].y) + 1, POINT_WIDTH - 2, POINT_HEIGHT - 2);
+				}
+			}
+			
+			function draw() {
+				canvas2d.clearRect(0, 0, frameWidth, frameHeight);
+				
+				drawSnake();
+				drawCrumbles();
+				
+			}
+			
+			function isOutside(x, y) {
+				return x < 0 || x >= rows || y < 0 || y >= columns;
+			}
+			
+			function isCrumble(x, y) {
+				for (let i = 0; i < crumbles.length; i++) {
+					if (crumbles[i].x == x && crumbles[i].y == y) {
+						return true;
+					}
+				}
+				
+				return false;
+			}
+			
+			function isSnake(x, y) {
+				for (let i = 0; i < snake.length; i++) {
+					if (snake[i].x == x && snake[i].y == y) {
+						return true;
+					}
+				}
+				
+				return false;
+			}
+			
+			function isCollision(x, y) {
+				return isOutside(x, y) || isSnake(x, y);
+			}
+			
+			function move(offsetX, offsetY) {
+				for (let i = snake.length - 1; i > 0; i--) {
+					snake[i].x = snake[i - 1].x;
+					snake[i].y = snake[i - 1].y;
+				}
+				
+				if (isCollision(snake[0].x + offsetX, snake[0].y + offsetY)) {
+					return false;
+				}
+				
+				snake[0].x = snake[0].x + offsetX;
+				snake[0].y = snake[0].y + offsetY;
+				return true;
+			}
+			
+			function changeDirection(offsetX, offsetY) {
+				if (offsetY != 0 && directionY != 0) {
+					return;
+				}
+				
+				if (offsetX != 0 && directionX != 0) {
+					return;
+				}
+				
+				if (offsetY != 0 && offsetX != 0) {
+					return;
+				}
+				
+				directionY = offsetY;
+				directionX = offsetX;
+				alreadyMoved = true;
+			}
+			
+			function handleKey(event) {
+				if (alreadyMoved) {
+					return;
+				}
+				
+				if (event.key == "ArrowUp") {
+					changeDirection(0, -1);
+				} else if (event.key == "ArrowRight") {
+					changeDirection(1, 0);
+				} else if (event.key == "ArrowLeft") {
+					changeDirection(-1, 0);
+				} else if (event.key == "ArrowDown") {
+					changeDirection(0, 1);
+				}
+			}
+			
+			function eatCrumble(lastSnakePartX, lastSnakePartY) {
+				removeCrumble(snake[0].x, snake[0].y);
+				createNewCrumble();
+				makeSnakeLonger(lastSnakePartX, lastSnakePartY);
+				changeScore(score + (2 * (snake.length - INITIAL_SNAKE_SIZE)) + ((100 - speed) * 0.1));
+			}
+			
+			function changeScore(newScore) {
+				score = newScore;
+				document.getElementById("score").innerHTML = Math.floor(score);
+			}
+			
+			function lost() {
+				setTimeout(function() {
+					alert("lost");
+				}, 5);
+			}
+			
+			function startMoveLoop() {
+				let timerId = setInterval(function() {
+					let lastSnakePartX = snake[snake.length - 1].x
+					let lastSnakePartY = snake[snake.length - 1].y
+					
+					if (!move(directionX, directionY)) {
+						clearTimeout(timerId);
+						
+						lost();
+					}
+					
+					if (isCrumble(snake[0].x, snake[0].y)) {
+						eatCrumble(lastSnakePartX, lastSnakePartY);
+					}
+					
+					draw();
+					alreadyMoved = false;
+				}, speed);
+			}
+			
+			function startNewGame() {
+				crumblesCount = document.getElementById("crumbles").valueAsNumber
+				speed = document.getElementById("speed").valueAsNumber
+				
+				if (crumblesCount < 0 || crumblesCount > 10 || speed < 0 || speed > 100) {
+					alert("Invalid number of speed or columns");
+					return;
+				}
+				
+				rows = 50;
+				columns = 50;
+				directionX = 1;
+				directionY = 0;
+				initialize(INITIAL_SNAKE_SIZE, crumblesCount);
+				
+				setTimeout(function() {
+					canvas.height = rows * POINT_WIDTH;
+					canvas.width = columns * POINT_HEIGHT;
+					frameWidth = canvas.width
+					frameHeight = canvas.height
+					draw();
+				});
+				
+				startMoveLoop();
+			}
+			
+			function main() {
+				document.onkeydown = function(event) {
+					handleKey(event);
+				}
+				
+				document.getElementById("start").onclick = function(event) {
+					startNewGame();
+				};
+			}
+			
+			main();
+		</script>
+	</body>
+</html>
