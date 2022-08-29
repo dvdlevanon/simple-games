@@ -16,15 +16,29 @@
 				color: white;
 				border: 1px solid black;
 			}
+			#user_input {
+				width: 100px;
+				height: 100px;
+				position: absolute;
+				display: none;
+				text-align: center;
+				caret-color: transparent;
+			}
+			#user_input::-webkit-inner-spin-button {
+				-webkit-appearance: none;
+				margin: 0;
+			}
 		</style>
 	</head>
 	<body>
-		<canvas id="canvas" width="600" height="600" />
+		<canvas id="canvas" width="600" height="600"></canvas>
+		<input type="number" id="user_input"></input>
 		<script>
-			const TILES_GAP = 3;
+			const TILES_GAP = 1;
 			const BLOCK_TILE = 0;
 			const NO_NUMBER = -1;
 			const canvas = document.getElementById("canvas");
+			const input = document.getElementById("user_input");
 			const canvas2d = canvas.getContext("2d");
 			
 			let frameWidth = canvas.width;
@@ -32,13 +46,13 @@
 			let tiles = []
 			let rows = 0;
 			let columns = 0;
+			let maxLength = 4;
 			
-			function initializeNumbers() {
+			function initializeEmpty() {
 				for (let y = 0; y < rows; y++) {
 					let row = []
 					
 					for (let x = 0; x < columns; x++) {
-						// row.push(randomInt(9) + 1);
 						row.push(NO_NUMBER);
 					}
 					
@@ -46,7 +60,7 @@
 				}
 			}
 			
-			function initializeBorders() {
+			function generateBorders() {
 				for (let y = 0; y < rows; y++) {
 					tiles[y][0] = BLOCK_TILE;
 				}
@@ -56,90 +70,363 @@
 				}
 			}
 			
-			function generateIsland(x, y) {
-				if (isOutside(x, y)) {
-					return;
-				}
-				
-				if (shouldNotBlock(x, y)) {
-					return;
-				}
-				
-				tiles[y][x] = BLOCK_TILE;
-				
-				if (randomBoolean()) {
-					generateIsland(x + randomInt(3) - 1, y);
-				} else {
-					generateIsland(x, y + randomInt(3) - 1);
+			function generateIslands() {
+				let y = 0;
+				while (y < rows) {
+					let x = randomInt(maxLength) / 2;
+					while (x < columns) {
+						generateIsland(x, y);
+						x = x + randomInt(maxLength) / 2;
+					}
+					
+					y = y + 1;
 				}
 			}
 			
+			function generateIsland(x, y) {
+				if (isValidForBlock(x, y)) {
+					tiles[y][x] = BLOCK_TILE;
+				}
+				
+				if (randomBoolean()) {
+					if (isValidForBlock(x + 1, y)) {
+						tiles[y][x + 1] = BLOCK_TILE;
+					}
+					
+					if (isValidForBlock(x, y + 1)) {
+						tiles[y + 1][x] = BLOCK_TILE;
+					}
+					
+					if (isValidForBlock(x + 1, y + 1)) {
+						tiles[y + 1][x + 1] = BLOCK_TILE;
+					}
+				}
+			}
+			
+			function isValidForBlock(x, y) {
+				if (isOutside(x, y)) {
+					return false;
+				}
+				
+				if (isBlockMakeSingleCells(x, y)) {
+					return false;
+				}
+				
+				let oldValue = tiles[y][x];
+				tiles[y][x] = BLOCK_TILE;
+				let numberOfIslands = calculateNumberOfIslands();
+				tiles[y][x] = oldValue;
+				
+				return numberOfIslands == 1;
+			}
+			
+			function isBlockMakeSingleCells(x, y) {
+				if (getTileValue(x - 1, y, BLOCK_TILE) != BLOCK_TILE &&
+					getTileValue(x - 2, y, BLOCK_TILE) == BLOCK_TILE) {
+					return true;
+				}
+				
+				if (getTileValue(x + 1, y, BLOCK_TILE) != BLOCK_TILE &&
+					getTileValue(x + 2, y, BLOCK_TILE) == BLOCK_TILE) {
+					return true;
+				}
+				
+				if (getTileValue(x, y - 1, BLOCK_TILE) != BLOCK_TILE &&
+					getTileValue(x, y - 2, BLOCK_TILE) == BLOCK_TILE) {
+					return true;
+				}
+				
+				if (getTileValue(x, y + 1, BLOCK_TILE) != BLOCK_TILE &&
+					getTileValue(x, y + 2, BLOCK_TILE) == BLOCK_TILE) {
+					return true;
+				}
+				
+				return false;
+			}
+			
+			function calculateNumberOfIslands() {
+				let islandsMap = []
+				for (let y = 0; y < rows; y++) {
+					let row = []
+					
+					for (let x = 0; x < columns; x++) {
+						row.push(NO_NUMBER);
+					}
+					
+					islandsMap.push(row)
+				}
+				
+				let islandNumber = 1;
+				
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						if (islandsMap[y][x] != NO_NUMBER) {
+							continue;
+						}
+						
+						if (tiles[y][x] == BLOCK_TILE) {
+							continue;
+						}
+						
+						islandsMap = markIsland(x, y, islandsMap, islandNumber);
+						islandNumber = islandNumber + 1;
+					}
+				}
+				
+				return islandNumber - 1;
+			}
+			
+			function markIsland(x, y, islandsMap, islandNumber) {
+				if (isOutside(x, y)) {
+					return islandsMap;
+				}
+				
+				if (tiles[y][x] == BLOCK_TILE) {
+					return islandsMap;
+				}
+				
+				if (islandsMap[y][x] != NO_NUMBER) {
+					return islandsMap;
+				}
+				
+				islandsMap[y][x] = islandNumber;
+				islandsMap = markIsland(x + 1, y, islandsMap, islandNumber);
+				islandsMap = markIsland(x - 1, y, islandsMap, islandNumber);
+				islandsMap = markIsland(x, y + 1, islandsMap, islandNumber);
+				islandsMap = markIsland(x, y - 1, islandsMap, islandNumber);
+				return islandsMap;
+			}
+			
+			function shortenLongRowsAndColumns() {
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						if (tiles[y][x] == BLOCK_TILE) {
+							continue;
+						}
+						
+						if (getLength(x, y, true) > maxLength) {
+							if (!shortenRowOrColumn(x, y, true)) {
+								return false;
+							}
+						}
+						
+						if (getLength(x, y, false) > maxLength) {
+							if (!shortenRowOrColumn(x, y, false)) {
+								return false;
+							}
+						}
+					}
+				}
+				
+				return true;
+			}
+			
+			function getSum(x, y, isRow) {
+				let result = 0;
+				
+				while (true) {
+					if (isOutside(x, y)) {
+						return result;
+					}
+					
+					if (isBlock(x, y)) {
+						return result;
+					}
+					
+					result = result + tiles[y][x];
+					
+					if (isRow) {
+						x = x + 1;
+					} else {
+						y = y + 1;
+					}
+				}
+			}
+			
+			function getLength(x, y, isRow) {
+				let result = 0;
+				
+				while (true) {
+					if (isOutside(x, y)) {
+						return result;
+					}
+					
+					if (isBlock(x, y)) {
+						return result;
+					}
+					
+					result = result + 1;
+					
+					if (isRow) {
+						x = x + 1;
+					} else {
+						y = y + 1;
+					}
+				}
+			}
+			
+			function shortenRowOrColumn(x, y, isRow) {
+				let length = getLength(x, y, isRow);
+				let counter = 0;
+				
+				while (length > maxLength) {
+					if (isRow) {
+						generateIsland(x + randomInt(length), y);
+					} else {
+						generateIsland(x, y + randomInt(length));
+					}
+					
+					length = getLength(x, y, isRow);
+					
+					if (counter++ > 100) {
+						return false;
+					}
+				}
+				
+				return true;
+			}
+			
+			function getTileValue(x, y, invalidValue) {
+				if (isOutside(x, y)) {
+					return invalidValue;
+				}
+				
+				return tiles[y][x];
+			}
+			
 			function isOutside(x, y) {
-				return x < 0 || x >= rows || y < 0 || y >= columns;
+				return x < 0 || x >= columns || y < 0 || y >= rows;
 			}
 			
 			function isBlock(x, y) {
 				return tiles[y][x] == BLOCK_TILE;
 			}
 			
-			function shouldNotBlock(x, y) {
-				return isSurroundedBy3Blocks(x + 1, y) ||
-					isSurroundedBy3Blocks(x - 1, y) ||
-					isSurroundedBy3Blocks(x, y + 1) ||
-					isSurroundedBy3Blocks(x, y - 1);
+			function fillNumbers() {
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						if (tiles[y][x] != NO_NUMBER) {
+							continue;
+						}
+						
+						if (!fillNumbersRecursively(x, y)) {
+							return false;
+						}
+					}
+				}
+				return true;
 			}
 			
-			function isSurroundedBy3Blocks(x, y) {
+			function fillNumbersRecursively(x, y) {
 				if (isOutside(x, y)) {
-					return false;
+					//console.log("OUTSIDE " + x + ":" + y)
+					return true;
 				}
 				
-				let numOfSourroundBlocks = 0;
+				if (tiles[y][x] != NO_NUMBER) {
+					//console.log("NO NUMBER " + x + ":" + y)
 				
-				if (!isOutside(x + 1, y) && isBlock(x + 1, y)) {
-					numOfSourroundBlocks = numOfSourroundBlocks + 1;
+					return true;
 				}
 				
-				if (!isOutside(x - 1, y) && isBlock(x - 1, y)) {
-					numOfSourroundBlocks = numOfSourroundBlocks + 1;
+				//console.log("FILL " + x + ":" + y)
+				
+				let randomNumber = randomInt(maxLength) + 1;
+				
+				for (let i = 0; i < maxLength; i++) {
+					candidate = ((randomNumber + i) % maxLength) + 1;
+					
+					if (!existsInRow(x, y, candidate) && 
+						!existsInColumn(x, y, candidate)) {
+						tiles[y][x] = candidate;
+						
+						if (fillNumbersRecursively(x + 1, y)) {
+							if (fillNumbersRecursively(x, y + 1)) {
+								return true;
+							}
+						}
+						
+						tiles[y][x] = NO_NUMBER;
+					}
 				}
 				
-				if (!isOutside(x, y + 1) && isBlock(x, y + 1)) {
-					numOfSourroundBlocks = numOfSourroundBlocks + 1;
-				}
-				
-				if (!isOutside(x, y - 1) && isBlock(x, y - 1)) {
-					numOfSourroundBlocks = numOfSourroundBlocks + 1;
-				}
-				
-				return numOfSourroundBlocks >= 2;
+				return false;
 			}
 			
-			function generateIslands() {
-				for (let i = 0; i < 10; i++) {
-					generateIsland(randomInt(columns), randomInt(rows), 0);
-					// if (randomBoolean()) {
-					// 	if (randomBoolean()) {
-					// 		generateIsland(1, randomInt(rows), 0);
-					// 	} else {
-					// 		generateIsland(columns - 1, randomInt(rows), 0);
-					// 	}
-					// } else {
-					// 	if (randomBoolean()) {
-					// 		generateIsland(randomInt(columns), 1, 0);
-					// 	} else {
-					// 		generateIsland(randomInt(columns), rows - 1, 0);
-					// 	}
-					// }
+			function existsInRow(x, y, number) {
+				let curX = x;
+				
+				while (!isBlock(curX - 1, y)) {
+					curX = curX - 1;
+				}
+
+				while (true) {
+					if (isOutside(curX, y)) {
+						return false;
+					}
+					
+					if (isBlock(curX, y)) {
+						return false;
+					}
+					
+					if (tiles[y][curX] == number) {
+						return true;
+					}
+					
+					curX = curX + 1;
+				}
+			}
+			
+			function existsInColumn(x, y, number) {
+				let curY = y;
+				
+				while (!isBlock(x, curY - 1)) {
+					curY = curY - 1;
+				}
+				
+				while (true) {
+					if (isOutside(x, curY)) {
+						return false;
+					}
+					
+					if (isBlock(x, curY)) {
+						return false;
+					}
+					
+					if (tiles[curY][x] == number) {
+						return true;
+					}
+					
+					curY = curY + 1;
 				}
 			}
 			
 			function initialize() {
-				tiles = []
+				let counter = 0;
 				
-				initializeNumbers();
-				generateIslands();
-				initializeBorders();
+				while (true) {
+					tiles = []
+					
+					initializeEmpty();
+					generateBorders();
+					generateIslands();
+					
+					if (shortenLongRowsAndColumns()) {
+						if (fillNumbers()) {
+							console.log("success")
+							break;
+						} else {
+							console.log("regenerate numbers")
+						}
+					} else {
+						console.log("regenerate board")
+					}
+					
+					if (counter++ > 1000) {
+						break;
+					}
+					
+				}
 			}
 			
 			function tileWidth() {
@@ -160,8 +447,37 @@
 			
 			function drawTile(x, y) {
 				if (tiles[y][x] == BLOCK_TILE) {
-					canvas2d.fillStyle = "white";
+					canvas2d.fillStyle = "black";
 					canvas2d.fillRect(tileLeft(x), tileTop(y), tileWidth(), tileHeight());
+					
+					let rowSum = getSum(x + 1, y, true);
+					let colSum = getSum(x, y + 1, false);
+					
+					if (rowSum == 0 && colSum == 0) {
+						return;
+					}
+					
+					canvas2d.fillStyle = "white";
+					canvas2d.beginPath();
+					canvas2d.moveTo(tileLeft(x), tileTop(y));
+					canvas2d.lineTo(tileLeft(x) + tileWidth(), tileTop(y) + tileHeight());
+					canvas2d.stroke();
+					
+					if (rowSum != 0) {
+						canvas2d.font = "15px David";
+						canvas2d.strokeStyle = "white";
+						canvas2d.textAlign = "center";
+						canvas2d.textBaseline = "middle";
+						canvas2d.fillText(rowSum, tileLeft(x) + (tileWidth() / 2) + (tileWidth() / 4), tileTop(y) + (tileHeight() / 4));
+					}
+					
+					if (colSum != 0) {
+						canvas2d.font = "15px David";
+						canvas2d.fillStyle = "white";
+						canvas2d.textAlign = "center";
+						canvas2d.textBaseline = "middle";
+						canvas2d.fillText(colSum, tileLeft(x) + (tileWidth() / 4), tileTop(y) + (tileWidth() / 2) + (tileHeight() / 4));
+					}
 					return;
 				}
 				
@@ -171,14 +487,14 @@
 					return;
 				}
 				
-				canvas2d.fillStyle = "black";
+				canvas2d.fillStyle = "white";
 				canvas2d.fillRect(tileLeft(x), tileTop(y), tileWidth(), tileHeight());
 				
-				canvas2d.font = "60px David";
-				canvas2d.fillStyle = "white";
-				canvas2d.textAlign = "center";
-				canvas2d.textBaseline = "middle";
-				canvas2d.fillText(tiles[y][x], tileLeft(x) + (tileWidth() / 2), tileTop(y) + (tileHeight() / 2));
+				// canvas2d.font = "30px David";
+				// canvas2d.fillStyle = "white";
+				// canvas2d.textAlign = "center";
+				// canvas2d.textBaseline = "middle";
+				// canvas2d.fillText(tiles[y][x], tileLeft(x) + (tileWidth() / 2), tileTop(y) + (tileHeight() / 2));
 			}
 			
 			function draw() {
@@ -199,19 +515,68 @@
 				return Math.floor(Math.random() * 2) == 0;
 			}
 			
+			function handleClick(event) {
+				let rect = event.target.getBoundingClientRect();
+				let x = event.clientX - rect.left;
+				let y = event.clientY - rect.top;
+				let tileX = Math.floor(x / (frameWidth / columns));
+				let tileY = Math.floor(y / (frameHeight / rows));
+				
+				if (tiles[tileY][tileX] <= 0) {
+					input.style.display = "none"
+					return;
+				}
+				
+				input.style.left = (rect.left + tileLeft(tileX)) + "px";
+				input.style.top = (rect.top + tileTop(tileY)) + "px";
+				input.style.width = tileWidth() + TILES_GAP * 2 + "px"
+				input.style.height = tileHeight() + TILES_GAP * 2 + "px"
+				input.value = ""
+				input.style.display = "initial"
+				input.attributes["selected"] = {
+					x: tileX,
+					y: tileY
+				}
+				input.focus()
+				// draw();
+			}
+			
+			function handleInputChange(event) {
+				let selectedTile = input.attributes.selected
+				// tiles[selectedTile.y][selectedTile.x] = input.value
+				console.log(input.value)
+				draw();
+			}
+			
 			function startNewGame() {
-				rows = 10;
-				columns = 10;
+				rows = 9;
+				columns = 9;
 				
 				initialize();
 				
 				setTimeout(function() {
-					canvas.height = rows * 80;
-					canvas.width = columns * 80;
+					canvas.height = rows * 40;
+					canvas.width = columns * 40;
+					input.height = rows * 40;
+					input.width = columns * 40;
 					frameWidth = canvas.width
 					frameHeight = canvas.height
 					draw();
 				}, 1);
+				
+				canvas.onclick = function(event) {
+					event.stopPropagation();
+					handleClick(event);
+				};
+				
+				input.onblur = function(event) {
+					input.style.display = "none"
+					input.attributes["selected"] = {}
+				}
+				
+				input.onchange = function(event) {
+					handleInputChange(event);
+				}
 			}
 			
 			function main() {
