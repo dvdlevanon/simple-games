@@ -23,6 +23,9 @@
 				display: none;
 				text-align: center;
 				caret-color: transparent;
+				font-family: "David";
+				font-size: 20px;
+				color: blue;
 			}
 			#user_input::-webkit-inner-spin-button {
 				-webkit-appearance: none;
@@ -53,7 +56,10 @@
 					let row = []
 					
 					for (let x = 0; x < columns; x++) {
-						row.push(NO_NUMBER);
+						row.push({
+							real_value: NO_NUMBER,
+							user_value: NO_NUMBER
+						});
 					}
 					
 					tiles.push(row)
@@ -62,21 +68,21 @@
 			
 			function generateBorders() {
 				for (let y = 0; y < rows; y++) {
-					tiles[y][0] = BLOCK_TILE;
+					tiles[y][0].real_value = BLOCK_TILE;
 				}
 				
 				for (let x = 0; x < columns; x++) {
-					tiles[0][x] = BLOCK_TILE;
+					tiles[0][x].real_value = BLOCK_TILE;
 				}
 			}
 			
 			function generateIslands() {
 				let y = 0;
 				while (y < rows) {
-					let x = randomInt(maxLength) / 2;
+					let x = Math.floor(randomInt(maxLength) / 2);
 					while (x < columns) {
 						generateIsland(x, y);
-						x = x + randomInt(maxLength) / 2;
+						x = Math.floor(x + randomInt(maxLength) / 2);
 					}
 					
 					y = y + 1;
@@ -85,20 +91,20 @@
 			
 			function generateIsland(x, y) {
 				if (isValidForBlock(x, y)) {
-					tiles[y][x] = BLOCK_TILE;
+					tiles[y][x].real_value = BLOCK_TILE;
 				}
 				
 				if (randomBoolean()) {
 					if (isValidForBlock(x + 1, y)) {
-						tiles[y][x + 1] = BLOCK_TILE;
+						tiles[y][x + 1].real_value = BLOCK_TILE;
 					}
 					
 					if (isValidForBlock(x, y + 1)) {
-						tiles[y + 1][x] = BLOCK_TILE;
+						tiles[y + 1][x].real_value = BLOCK_TILE;
 					}
 					
 					if (isValidForBlock(x + 1, y + 1)) {
-						tiles[y + 1][x + 1] = BLOCK_TILE;
+						tiles[y + 1][x + 1].real_value = BLOCK_TILE;
 					}
 				}
 			}
@@ -112,10 +118,10 @@
 					return false;
 				}
 				
-				let oldValue = tiles[y][x];
-				tiles[y][x] = BLOCK_TILE;
+				let oldValue = tiles[y][x].real_value;
+				tiles[y][x].real_value = BLOCK_TILE;
 				let numberOfIslands = calculateNumberOfIslands();
-				tiles[y][x] = oldValue;
+				tiles[y][x].real_value = oldValue;
 				
 				return numberOfIslands == 1;
 			}
@@ -164,7 +170,7 @@
 							continue;
 						}
 						
-						if (tiles[y][x] == BLOCK_TILE) {
+						if (tiles[y][x].real_value == BLOCK_TILE) {
 							continue;
 						}
 						
@@ -181,7 +187,7 @@
 					return islandsMap;
 				}
 				
-				if (tiles[y][x] == BLOCK_TILE) {
+				if (tiles[y][x].real_value == BLOCK_TILE) {
 					return islandsMap;
 				}
 				
@@ -200,7 +206,7 @@
 			function shortenLongRowsAndColumns() {
 				for (let y = 0; y < rows; y++) {
 					for (let x = 0; x < columns; x++) {
-						if (tiles[y][x] == BLOCK_TILE) {
+						if (tiles[y][x].real_value == BLOCK_TILE) {
 							continue;
 						}
 						
@@ -233,7 +239,29 @@
 						return result;
 					}
 					
-					result = result + tiles[y][x];
+					result = result + tiles[y][x].real_value;
+					
+					if (isRow) {
+						x = x + 1;
+					} else {
+						y = y + 1;
+					}
+				}
+			}
+			
+			function getUserSum(x, y, isRow) {
+				let result = 0;
+				
+				while (true) {
+					if (isOutside(x, y)) {
+						return result;
+					}
+					
+					if (isBlock(x, y)) {
+						return result;
+					}
+					
+					result = result + tiles[y][x].user_value;
 					
 					if (isRow) {
 						x = x + 1;
@@ -291,7 +319,7 @@
 					return invalidValue;
 				}
 				
-				return tiles[y][x];
+				return tiles[y][x].real_value;
 			}
 			
 			function isOutside(x, y) {
@@ -299,13 +327,13 @@
 			}
 			
 			function isBlock(x, y) {
-				return tiles[y][x] == BLOCK_TILE;
+				return tiles[y][x].real_value == BLOCK_TILE;
 			}
 			
 			function fillNumbers() {
 				for (let y = 0; y < rows; y++) {
 					for (let x = 0; x < columns; x++) {
-						if (tiles[y][x] != NO_NUMBER) {
+						if (tiles[y][x].real_value != NO_NUMBER) {
 							continue;
 						}
 						
@@ -319,17 +347,12 @@
 			
 			function fillNumbersRecursively(x, y) {
 				if (isOutside(x, y)) {
-					//console.log("OUTSIDE " + x + ":" + y)
 					return true;
 				}
 				
-				if (tiles[y][x] != NO_NUMBER) {
-					//console.log("NO NUMBER " + x + ":" + y)
-				
+				if (tiles[y][x].real_value != NO_NUMBER) {
 					return true;
 				}
-				
-				//console.log("FILL " + x + ":" + y)
 				
 				let randomNumber = randomInt(maxLength) + 1;
 				
@@ -338,7 +361,7 @@
 					
 					if (!existsInRow(x, y, candidate) && 
 						!existsInColumn(x, y, candidate)) {
-						tiles[y][x] = candidate;
+						tiles[y][x].real_value = candidate;
 						
 						if (fillNumbersRecursively(x + 1, y)) {
 							if (fillNumbersRecursively(x, y + 1)) {
@@ -346,7 +369,7 @@
 							}
 						}
 						
-						tiles[y][x] = NO_NUMBER;
+						tiles[y][x].real_value = NO_NUMBER;
 					}
 				}
 				
@@ -369,7 +392,7 @@
 						return false;
 					}
 					
-					if (tiles[y][curX] == number) {
+					if (tiles[y][curX].real_value == number) {
 						return true;
 					}
 					
@@ -393,7 +416,7 @@
 						return false;
 					}
 					
-					if (tiles[curY][x] == number) {
+					if (tiles[curY][x].real_value == number) {
 						return true;
 					}
 					
@@ -425,7 +448,6 @@
 					if (counter++ > 1000) {
 						break;
 					}
-					
 				}
 			}
 			
@@ -446,7 +468,7 @@
 			}
 			
 			function drawTile(x, y) {
-				if (tiles[y][x] == BLOCK_TILE) {
+				if (tiles[y][x].real_value == BLOCK_TILE) {
 					canvas2d.fillStyle = "black";
 					canvas2d.fillRect(tileLeft(x), tileTop(y), tileWidth(), tileHeight());
 					
@@ -457,7 +479,7 @@
 						return;
 					}
 					
-					canvas2d.fillStyle = "white";
+					canvas2d.strokeStyle = "gray";
 					canvas2d.beginPath();
 					canvas2d.moveTo(tileLeft(x), tileTop(y));
 					canvas2d.lineTo(tileLeft(x) + tileWidth(), tileTop(y) + tileHeight());
@@ -465,7 +487,7 @@
 					
 					if (rowSum != 0) {
 						canvas2d.font = "15px David";
-						canvas2d.strokeStyle = "white";
+						canvas2d.fillStyle = "white";
 						canvas2d.textAlign = "center";
 						canvas2d.textBaseline = "middle";
 						canvas2d.fillText(rowSum, tileLeft(x) + (tileWidth() / 2) + (tileWidth() / 4), tileTop(y) + (tileHeight() / 4));
@@ -478,10 +500,11 @@
 						canvas2d.textBaseline = "middle";
 						canvas2d.fillText(colSum, tileLeft(x) + (tileWidth() / 4), tileTop(y) + (tileWidth() / 2) + (tileHeight() / 4));
 					}
+					
 					return;
 				}
 				
-				if (tiles[y][x] == NO_NUMBER) {
+				if (tiles[y][x].real_value == NO_NUMBER) {
 					canvas2d.fillStyle = "#AAA";
 					canvas2d.fillRect(tileLeft(x), tileTop(y), tileWidth(), tileHeight());
 					return;
@@ -490,11 +513,13 @@
 				canvas2d.fillStyle = "white";
 				canvas2d.fillRect(tileLeft(x), tileTop(y), tileWidth(), tileHeight());
 				
-				// canvas2d.font = "30px David";
-				// canvas2d.fillStyle = "white";
-				// canvas2d.textAlign = "center";
-				// canvas2d.textBaseline = "middle";
-				// canvas2d.fillText(tiles[y][x], tileLeft(x) + (tileWidth() / 2), tileTop(y) + (tileHeight() / 2));
+				if (tiles[y][x].user_value != NO_NUMBER) {
+					canvas2d.font = "20px David";
+					canvas2d.fillStyle = "blue";
+					canvas2d.textAlign = "center";
+					canvas2d.textBaseline = "middle";
+					canvas2d.fillText(tiles[y][x].user_value, tileLeft(x) + (tileWidth() / 2), tileTop(y) + (tileHeight() / 2));
+				}
 			}
 			
 			function draw() {
@@ -522,7 +547,7 @@
 				let tileX = Math.floor(x / (frameWidth / columns));
 				let tileY = Math.floor(y / (frameHeight / rows));
 				
-				if (tiles[tileY][tileX] <= 0) {
+				if (tiles[tileY][tileX].real_value <= 0) {
 					input.style.display = "none"
 					return;
 				}
@@ -538,19 +563,35 @@
 					y: tileY
 				}
 				input.focus()
-				// draw();
+			}
+			
+			function check() {
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						if (isBlock(x, y)) {
+							continue;
+						}
+						
+						if (getSum(x, y, true) != getUserSum(x, y, true) ||
+							getSum(x, y, false) != getUserSum(x, y, false)) {
+							return;
+						}
+					}
+				}
+				
+				alert("win");
 			}
 			
 			function handleInputChange(event) {
 				let selectedTile = input.attributes.selected
-				// tiles[selectedTile.y][selectedTile.x] = input.value
-				console.log(input.value)
+				tiles[selectedTile.y][selectedTile.x].user_value = parseInt(input.value)
 				draw();
+				check();
 			}
 			
 			function startNewGame() {
-				rows = 9;
-				columns = 9;
+				rows = 5;
+				columns = 5;
 				
 				initialize();
 				
