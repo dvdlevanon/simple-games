@@ -1,0 +1,150 @@
+<html>
+	<head>
+		<style>
+			body {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-direction: column;
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				overflow: hidden;
+				background: gray;
+			}
+			#canvas {
+				background: black;
+				color: white;
+				border: 1px solid black;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas" width="600" height="600"></canvas>
+		<script>
+			const TILES_GAP = 0;
+			const BOXES_GAP = 6;
+			const EMPTY = -1;
+			const canvas = document.getElementById("canvas");
+			const canvas2d = canvas.getContext("2d");
+			
+			let frameWidth = canvas.width;
+			let frameHeight = canvas.height;
+			let tiles;
+			let rows = 9;
+			let columns = 9;
+
+			function randomInt(max) {
+				return Math.floor(Math.random() * max);
+			}
+			
+			function initializeEmptyTile() {
+				return {
+					value: EMPTY,
+					userInput: EMPTY
+				};
+			}
+			
+			function initializeEmptyRow() {
+				let row = []
+					
+				for (let x = 0; x < columns; x++) {
+					row.push(initializeEmptyTile());
+				}
+				
+				return row;
+			}
+			
+			function initializeEmptyGrid() {
+				let result = []
+				
+				for (let y = 0; y < rows; y++) {
+					result.push(initializeEmptyRow());
+				}
+				
+				return result;
+			}
+			
+			function initialize() {
+				canvas.height = rows * 70;
+				canvas.width = columns * 70;
+				frameWidth = canvas.width;
+				frameHeight = canvas.height;
+				
+				initializeEmptyGrid();
+				draw();
+			}
+			
+			function boxWidth() {
+				let boxColumn = (columns / 3);
+				return (frameWidth - (BOXES_GAP * (boxColumn + 1))) / boxColumn;
+			}
+			
+			function boxHeight() {
+				let boxRow = (rows / 3);
+				return (frameHeight - (BOXES_GAP * (boxRow + 1))) / boxRow;
+			}
+			
+			function boxLeft(x) {
+				return (x * boxWidth()) + ((x + 1) * BOXES_GAP);
+			}
+			
+			function boxTop(y) {
+				return (y * boxHeight()) + ((y + 1) * BOXES_GAP);
+			}
+			
+			function tileWidth() {
+				let actualWidth = frameWidth - (BOXES_GAP * 4);
+				return (actualWidth - (TILES_GAP * (columns + 1))) / columns;
+			}
+			
+			function tileHeight() {
+				let actualHeight = frameHeight - (BOXES_GAP * 4);
+				return (actualHeight - (TILES_GAP * (rows + 1))) / rows;
+			}
+			
+			function tileLeft(x) {
+				let relativeX = x % 3;
+				let boxX = Math.floor(x / 3);
+				return boxLeft(boxX) + relativeX * tileWidth() + (relativeX * TILES_GAP);
+			}
+			
+			function tileTop(y) {
+				let relativeY = y % 3
+				let boxY = Math.floor(y / 3);
+				return boxTop(boxY) + relativeY * tileHeight() + (relativeY * TILES_GAP);
+			}
+			
+			function drawTile(x, y) {
+				canvas2d.fillStyle = "white";
+				canvas2d.fillRect(tileLeft(x), tileTop(y), tileWidth(), tileHeight());
+			}
+			
+			function draw() {
+				// canvas2d.clearRect(0, 0, frameWidth, frameHeight);
+				
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						drawTile(x, y);
+					}
+				}
+				
+				// for (let y = 0; y < rows; y+=3) {
+				// 	for (let x = 0; x < columns; x+=3) {
+				// 		drawBoxes(x / 3, y / 3);
+				// 	}
+				// }
+			}
+					
+			function startNewGame() {
+				initialize();
+			}
+			
+			function main() {
+				startNewGame();
+			}
+			
+			main();
+		</script>
+	</body>
+</html>

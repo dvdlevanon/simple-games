@@ -47,8 +47,8 @@
 			const SHORTEN_LINE_MAX_RETRIES = 100;
 			const GENERATE_BOARD_MAX_RETRIES = 1000;
 			const canvas = document.getElementById("canvas");
-			const input = document.getElementById("user_input");
 			const canvas2d = canvas.getContext("2d");
+			const input = document.getElementById("user_input");
 			
 			let frameWidth = canvas.width;
 			let frameHeight = canvas.height;
@@ -57,11 +57,11 @@
 			let columns = 0;
 			let maxLength = 9;
 			let maxBlockSize = 2;
-						
+			
 			function randomInt(max) {
 				return Math.floor(Math.random() * max);
 			}
-
+			
 			function isOutside(position) {
 				return position.x < 0 || position.x >= columns || position.y < 0 || position.y >= rows;
 			}
@@ -655,6 +655,7 @@
 				}
 				
 				draw();
+				
 				if (check()) {
 					alert("win");
 					initialize();
