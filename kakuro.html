@@ -31,9 +31,52 @@
 				-webkit-appearance: none;
 				margin: 0;
 			}
+			#options {
+				flex-direction: column;
+				display: flex;
+				padding: 10px;
+				align-items: center;
+			}
+			#options .inputs {
+				display: flex;
+				padding: 10px;
+			}
+			#options button {
+				width: 300px;
+				height: 25px;
+			}
+			#options .inputs .field {
+				padding: 10px;
+				display: flex;
+				justify-content: center;
+				flex-direction: row;
+			}
+			#options .inputs .field input {
+				width: 50px;
+				height: 25px;
+			}
+			#options .inputs .field span {
+				padding: 0px 10px 0px 0px;
+				display: inline-flex;
+				align-items: center;
+			}
 		</style>
 	</head>
 	<body>
+		<div id="options">
+			<div class="inputs">
+				<div class="field">
+					<span>Rows:</span><input type="number" id="rows" value="16" />
+				</div>
+				<div class="field">
+					<span>Columns:</span><input type="number" id="columns" value="16"/>
+				</div>
+				<div class="field">
+					<span>Max Length:</span><input type="number" id="max-length" value="9"/>
+				</div>
+			</div>
+			<button id="start">Start New Game</button>
+		</div>
 		<canvas id="canvas" width="600" height="600"></canvas>
 		<input type="number" id="user_input"></input>
 		<script>
@@ -53,9 +96,9 @@
 			let frameWidth = canvas.width;
 			let frameHeight = canvas.height;
 			let tiles;
-			let rows = 0;
-			let columns = 0;
-			let maxLength = 9;
+			let rows;
+			let columns;
+			let maxLength;
 			let maxBlockSize = 2;
 			
 			function randomInt(max) {
@@ -663,8 +706,14 @@
 			}
 			
 			function startNewGame() {
-				rows = 16;
-				columns = 16;
+				rows = document.getElementById("rows").valueAsNumber
+				columns = document.getElementById("columns").valueAsNumber
+				maxLength = document.getElementById("max-length").valueAsNumber
+				
+				if (rows < 2 || rows > 100 || columns < 2 || columns > 100 || maxLength > 9 || maxLength < 4) {
+					alert("Invalid number of rows, columns or max length");
+					return;
+				}
 				
 				initialize();
 				
@@ -684,6 +733,10 @@
 			
 			function main() {
 				startNewGame();
+				
+				document.getElementById("start").onclick = function(event) {
+					startNewGame();
+				};
 			}
 			
 			main();
