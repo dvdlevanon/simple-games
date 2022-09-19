@@ -270,15 +270,15 @@
 				return false;
 			}
 			
-			function isGoodMove(tiles, x, level, maxDepth) {
+			function rankMove(tiles, x, level, maxDepth) {
 				if (level > maxDepth) {
-					return true;
+					return 100;
 				}
 				
 				let candidate = cloneTiles(tiles);
 				
 				if (!dropPiece(candidate, x, COMPUTER_CODE)) {
-					return false;
+					return -100;
 				}
 				
 				for (let x2 = 0; x2 < columns; x2++) {
@@ -289,23 +289,23 @@
 					}
 					
 					if (isPlayerWin(candidate2, USER_CODE)) {
-						return false;
+						return -100;
 					}
 					
 					let allBad = true;
 					
 					for (let x3 = 0; x3 < columns; x3++) {
-						if (isGoodMove(candidate2, x3, level + 1, maxDepth)) {
+						if (rankMove(candidate2, x3, level + 1, maxDepth) == 100) {
 							allBad = false;
 						}
 					}
 					
 					if (allBad) {
-						return false;
+						return -100;
 					}
 				}
 				
-				return true;
+				return 100;
 			}
 			
 			function doComputerMove(tiles) {
@@ -314,7 +314,7 @@
 				for (let x = 0; x < columns; x++) {
 					let column = (x + seed) % columns;
 					
-					if (!isGoodMove(tiles, column, 1, 3)) {
+					if (rankMove(tiles, column, 1, 3) == -100) {
 						continue
 					}
 					
