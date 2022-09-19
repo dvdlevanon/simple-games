@@ -1,0 +1,369 @@
+<html>
+	<head>
+		<style>
+			body {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-direction: column;
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				overflow: hidden;
+			}
+			#canvas {
+				background: gray;
+				color: white;
+				border: 1px solid black;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas" width="600" height="600" />
+		<script>
+			const COLUMNS_GAP = 5;
+			const TILES_GAP = 45;
+			const USER_CODE = 1;
+			const COMPUTER_CODE = 2;
+			const EMPTY_TILE = 0;
+			const INVALID_TILE = -100;
+			const ROW_ORIENTATION = 1;
+			const COLUMN_ORIENTATION = 2;
+			const DIAGONAL_ORIENTATION1 = 3;
+			const DIAGONAL_ORIENTATION2 = 4;
+
+			const canvas = document.getElementById("canvas");
+			const canvas2d = canvas.getContext("2d");
+			
+			let frameWidth = canvas.width;
+			let frameHeight = canvas.height;
+			let rows = 6;
+			let columns = 7;
+			let playerTurn = USER_CODE;
+			
+			function randomInt(max) {
+				return Math.floor(Math.random() * max);
+			}
+			
+			function isOutside(position) {
+				return position.x < 0 || position.x >= columns || position.y < 0 || position.y >= rows;
+			}
+			
+			function getValueSafe(tiles, position, invalidValue) {
+				if (isOutside(position)) {
+					return invalidValue;
+				}
+				
+				return tiles[position.y][position.x];
+			}
+			
+			function changePosition(position, offsetX, offsetY) {
+				return newPosition(position.x + offsetX, position.y + offsetY);
+			}
+			
+			function changePositionOrientally(position, orientation, offset) {
+				if (orientation == ROW_ORIENTATION) {
+					return newPosition(position.x + offset, position.y);
+				} else if (orientation == COLUMN_ORIENTATION) {
+					return newPosition(position.x, position.y + offset);
+				} else if (orientation == DIAGONAL_ORIENTATION1) {
+					return newPosition(position.x + offset, position.y + offset);
+				} else {
+					return newPosition(position.x + offset, position.y - offset);
+				}
+			}
+			
+			function newPosition(x, y) {
+				return {
+					x: x,
+					y: y
+				};
+			}
+			
+			function initialize() {
+				let tiles = []
+				
+				for (let y = 0; y < rows; y++) {
+					let row = []
+					
+					for (let x = 0; x < columns; x++) {
+						row[x] = EMPTY_TILE;
+					}
+					
+					tiles.push(row)
+				}
+				
+				return tiles;
+			}
+			
+			function drawRoundedRect(x1, y1, width, height, angle) {
+				let x2 = x1 + width;
+				let y2 = y1 + height;
+				
+				canvas2d.beginPath();
+				canvas2d.moveTo(x1 + angle, y1);
+				canvas2d.lineTo(x2 - angle, y1);
+				canvas2d.quadraticCurveTo(x2, y1, x2, y1 + angle);
+				canvas2d.lineTo(x2, y2 - angle);
+				canvas2d.quadraticCurveTo(x2, y2, x2 - angle, y2);
+				canvas2d.lineTo(x1 + angle, y2);
+				canvas2d.quadraticCurveTo(x1, y2, x1, y2 - angle);
+				canvas2d.lineTo(x1, y1 + angle);
+				canvas2d.quadraticCurveTo(x1, y1, x1 + angle, y1);
+				canvas2d.stroke();
+			}
+			
+			function drawCircle(x1, y1, width, height) {
+				canvas2d.beginPath();
+				canvas2d.arc(x1 + (width / 2), y1 + (height / 2), TILES_GAP, 0, 2 * Math.PI);
+				canvas2d.fill();
+			}
+			
+			function columnWidth() {
+				return (frameWidth - (COLUMNS_GAP * (columns + 1))) / columns;
+			}
+			
+			function columnLeft(x) {
+				return x * columnWidth() + ((x * COLUMNS_GAP) + COLUMNS_GAP);
+			}
+			
+			function drawColumn(x) {
+				drawRoundedRect(columnLeft(x), COLUMNS_GAP, columnWidth(), frameHeight - COLUMNS_GAP * 2, 20);
+			}
+			
+			function tileWidth() {
+				return columnWidth() - (TILES_GAP * 2);
+			}
+			
+			function tileHeight() {
+				return tileWidth();
+			}
+			
+			function tileLeft(x) {
+				return columnLeft(x) + TILES_GAP;
+			}
+			
+			function tileTop(y) {
+				return frameHeight - (y * tileHeight()) - (y * TILES_GAP) - (tileHeight() + TILES_GAP);
+			}
+			
+			function drawTile(tiles, x, y) {
+				if (tiles[y][x] == EMPTY_TILE) {
+					canvas2d.fillStyle = "black";
+				} else if (tiles[y][x] == USER_CODE) {
+					canvas2d.fillStyle = "red";
+				} else if (tiles[y][x] == COMPUTER_CODE) {
+					canvas2d.fillStyle = "yellow";
+				}
+				
+				drawCircle(tileLeft(x), tileTop(y), tileWidth(), tileHeight());
+				canvas2d.font = "15px David";
+				canvas2d.fillStyle = "black";
+				canvas2d.textAlign = "center";
+				canvas2d.textBaseline = "middle";
+				canvas2d.fillText(x + " : " + y , tileLeft(x) + (tileWidth() / 2), tileTop(y) + (tileHeight() / 2));
+					
+			}
+			
+			function draw(tiles) {
+				canvas2d.clearRect(0, 0, frameWidth, frameHeight);
+				
+				for (let x = 0; x < columns; x++) {
+					drawColumn(x);
+				}
+				
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						drawTile(tiles, x, y);
+					}
+				}
+			}
+			
+			function switchTurn() {
+				if (playerTurn == USER_CODE) {
+					playerTurn = COMPUTER_CODE;
+				} else {
+					playerTurn = USER_CODE;
+				}
+			}
+			
+			function getEmptyTileForColumn(tiles, x) {
+				let y = 0;
+				
+				while (!isOutside(newPosition(x, y)) && (tiles[y][x] != EMPTY_TILE)) {
+					y = y + 1;
+				}
+				
+				return y
+			}
+			
+			function dropPiece(tiles, x, playerCode) {
+				let y = getEmptyTileForColumn(tiles, x);
+				
+				if (isOutside(newPosition(x, y))) {
+					return false;
+				}
+				
+				tiles[y][x] = playerCode;
+				return true
+			}
+			
+			function getLineLength(tiles, position, playerCode, orientation) {
+				let length = 0;
+				
+				while (getValueSafe(tiles, position, INVALID_TILE) == playerCode) {
+					length++;
+					position = changePositionOrientally(position, orientation, 1);
+				}
+				
+				return length;
+			}
+			
+			function cloneTiles(tiles) {
+				let result = []
+				
+				for (let y = 0; y < rows; y++) {
+					let row = []
+					
+					for (let x = 0; x < columns; x++) {
+						row.push(tiles[y][x]);
+					}
+					
+					result.push(row)
+				}
+				
+				return result;
+			}
+			
+			function check(tiles) {
+				let someoneWon = false;
+				
+				if (isPlayerWin(tiles, USER_CODE)) {
+					alert("User win");
+					someoneWon = true;
+				}
+				
+				if (isPlayerWin(tiles, COMPUTER_CODE)) {
+					alert("Computer win");
+					someoneWon = true;
+				}
+				
+				if (someoneWon) {
+					startNewGame();
+				}
+			}
+			
+			function isPlayerWin(tiles, playerCode) {
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						let position = newPosition(x, y);
+						
+						if (getLineLength(tiles, position, playerCode, ROW_ORIENTATION) > 3 ||
+							getLineLength(tiles, position, playerCode, COLUMN_ORIENTATION) > 3 ||
+							getLineLength(tiles, position, playerCode, DIAGONAL_ORIENTATION1) > 3 ||
+							getLineLength(tiles, position, playerCode, DIAGONAL_ORIENTATION2) > 3) {
+							return true;
+						}
+					}
+				}
+				
+				return false;
+			}
+			
+			function isGoodMove(tiles, x, level, maxDepth) {
+				if (level > maxDepth) {
+					return true;
+				}
+				
+				let candidate = cloneTiles(tiles);
+				
+				if (!dropPiece(candidate, x, COMPUTER_CODE)) {
+					return false;
+				}
+				
+				for (let x2 = 0; x2 < columns; x2++) {
+					let candidate2 = cloneTiles(candidate);
+					
+					if (!dropPiece(candidate2, x2, USER_CODE)) {
+						continue;
+					}
+					
+					if (isPlayerWin(candidate2, USER_CODE)) {
+						return false;
+					}
+					
+					let allBad = true;
+					
+					for (let x3 = 0; x3 < columns; x3++) {
+						if (isGoodMove(candidate2, x3, level + 1, maxDepth)) {
+							allBad = false;
+						}
+					}
+					
+					if (allBad) {
+						return false;
+					}
+				}
+				
+				return true;
+			}
+			
+			function doComputerMove(tiles) {
+				let seed = randomInt(columns);
+				
+				for (let x = 0; x < columns; x++) {
+					let column = (x + seed) % columns;
+					
+					if (!isGoodMove(tiles, column, 1, 3)) {
+						continue
+					}
+					
+					dropPiece(tiles, column, COMPUTER_CODE);
+					switchTurn();
+					draw(tiles);
+					return;
+				}
+				
+				dropPiece(tiles, seed, COMPUTER_CODE);
+				switchTurn();
+				draw(tiles);
+			}
+			
+			function handleClick(event, tiles) {
+				let rect = event.target.getBoundingClientRect();
+				let mouseX = event.clientX - rect.left;
+				let mouseY = event.clientY - rect.top;
+				let x = Math.floor(mouseX / (frameWidth / columns));
+				
+				dropPiece(tiles, x, USER_CODE);
+				
+				switchTurn(tiles);
+				doComputerMove(tiles);
+				draw(tiles);
+				check(tiles);
+			}
+			
+			function startNewGame() {
+				canvas.height = rows * 120;
+				canvas.width = columns * 150;
+				frameWidth = canvas.width;
+				frameHeight = canvas.height;
+				
+				let tiles = initialize();
+				
+				canvas.onclick = function(event) {
+					event.stopPropagation();
+					handleClick(event, tiles);
+				};
+				
+				draw(tiles);
+			}
+			
+			function main() {
+				startNewGame();
+			}
+			
+			main();
+		</script>
+	</body>
+</html>
