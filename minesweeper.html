@@ -1,0 +1,361 @@
+<html>
+	<head>
+		<style>
+			body {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-direction: column;
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				overflow: hidden;
+			}
+			#options {
+				flex-direction: column;
+				display: flex;
+				padding: 10px;
+				align-items: center;
+			}
+			#options .inputs {
+				display: flex;
+				padding: 10px;
+			}
+			#options button {
+				width: 300px;
+				height: 25px;
+			}
+			#options .inputs .field {
+				padding: 10px;
+				display: flex;
+				justify-content: center;
+				flex-direction: row;
+			}
+			#options .inputs .field input {
+				width: 50px;
+				height: 25px;
+			}
+			#options .inputs .field span {
+				padding: 0px 10px 0px 0px;
+				display: inline-flex;
+				align-items: center;
+			}
+			#canvas {
+				background: gray;
+				color: white;
+				border: 1px solid black;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="options">
+			<div class="inputs">
+				<div class="field">
+					<span>Rows:</span><input type="number" id="rows" value="20" />
+				</div>
+				<div class="field">
+					<span>Columns:</span><input type="number" id="columns" value="40"/>
+				</div>
+				<div class="field">
+					<span>Mines:</span><input type="number" id="mines" value="150"/>
+				</div>
+			</div>
+			<button id="start">Start New Game</button>
+		</div>
+		<canvas id="canvas" width="600" height="600" />
+		<script>
+			const EMPTY_TILE = 0
+			const MINE_TILE = -1
+			const TILES_GAP = 1
+			const NUMBER_COLORS = ["#0524ad", "#0fa303", "#b30216", "#9c05ad", "#9c05ad", "#b0b", "#b0b", "#b0b", "#b0b", "#b0b"]
+			const RIGHT_BUTTON = 2
+			
+			const canvas = document.getElementById("canvas");
+			const canvas2d = canvas.getContext("2d");
+			
+			let frameWidth = canvas.width;
+			let frameHeight = canvas.height;
+			let tiles = []
+			let rows = 0;
+			let columns = 0;
+			
+			function randomInt(max) {
+				return Math.floor(Math.random() * max);
+			}
+			
+			function createNewTile(value) {
+				return {
+					value: value,
+					isCovered: true,
+					withFlag: false
+				}
+			}
+
+			function initialize() {
+				tiles = []
+				
+				for (let y = 0; y < rows; y++) {
+					let row = []
+					
+					for (let x = 0; x < columns; x++) {
+						row.push(createNewTile(EMPTY_TILE));
+					}
+					
+					tiles.push(row)
+				}
+			}
+			
+			function putMines(minesCount) {
+				for (let i = 0; i < minesCount; i++) {
+					let x = randomInt(columns);
+					let y = randomInt(rows);
+					
+					while (tiles[y][x].value == MINE_TILE) {
+						x = randomInt(columns);
+						y = randomInt(rows);	
+					}
+					
+					tiles[y][x].value = MINE_TILE;
+				}
+			}
+			
+			function checkBounds(x, y) {
+				return (x >= 0 && x < columns && y >= 0 && y < rows);
+			}
+			
+			function incrementValueSafe(x, y, value) {
+				if (!checkBounds(x, y)) {
+					return;
+				}
+				
+				if (tiles[y][x].value == MINE_TILE) {
+					return;
+				}
+				
+				tiles[y][x].value = tiles[y][x].value + value;
+			}
+			
+			function numberTiles() {
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						if (tiles[y][x].value == MINE_TILE) {
+							incrementValueSafe(x, y + 1, 1);
+							incrementValueSafe(x, y - 1, 1);
+							incrementValueSafe(x + 1, y, 1);
+							incrementValueSafe(x - 1, y, 1);
+							incrementValueSafe(x + 1, y + 1, 1);
+							incrementValueSafe(x - 1, y - 1, 1);
+							incrementValueSafe(x + 1, y - 1, 1);
+							incrementValueSafe(x - 1, y + 1, 1);
+						}
+					}
+				}
+			}
+			
+			function tileWidth() {
+				return (frameWidth - (TILES_GAP * (columns + 1))) / columns;
+			}
+			
+			function tileHeight() {
+				return (frameHeight - (TILES_GAP * (rows + 1))) / rows;
+			}
+			
+			function tileLeft(x) {
+				return (x * tileWidth()) + ((x + 1) * TILES_GAP);
+			}
+			
+			function tileTop(y) {
+				return (y * tileHeight()) + ((y + 1) * TILES_GAP);
+			}
+			
+			function drawStar(cx, cy, spikes, outerRadius, innerRadius){
+				let rot = Math.PI / 2 * 3;
+				let x = cx;
+				let y = cy;
+				let step= Math.PI / spikes;
+
+				canvas2d.beginPath();
+				canvas2d.moveTo(cx, cy - outerRadius)
+				
+				for(let i = 0; i < spikes; i++) {
+					x = cx + Math.cos(rot) * outerRadius;
+					y = cy + Math.sin(rot) * outerRadius;
+					canvas2d.lineTo(x, y);
+					rot += step;
+
+					x = cx + Math.cos(rot) * innerRadius;
+					y = cy + Math.sin(rot) * innerRadius;
+					canvas2d.lineTo(x, y);
+					rot += step;
+				}
+				
+				canvas2d.lineTo(cx, cy - outerRadius);
+				canvas2d.closePath();
+				canvas2d.lineWidth = 2;
+				canvas2d.strokeStyle = 'red';
+				canvas2d.stroke();
+				canvas2d.fillStyle = 'yellow';
+				canvas2d.fill();
+			}
+			
+			function drawTile(x, y) {
+				canvas2d.fillStyle = "white";
+				canvas2d.fillRect(tileLeft(x), tileTop(y), tileWidth(), tileHeight());
+				
+				if (tiles[y][x].isCovered) {
+					canvas2d.fillStyle = "gray";
+					canvas2d.fillRect(tileLeft(x), tileTop(y), tileWidth(), tileHeight());
+					
+					if (tiles[y][x].withFlag) {
+						canvas2d.fillStyle = "red";
+						let flagGap = 5;
+						canvas2d.fillRect(tileLeft(x) + flagGap, tileTop(y) + flagGap, tileWidth() - (flagGap * 2), tileHeight() - (flagGap * 2));
+					}
+					return;
+				}
+				
+				if (tiles[y][x].value == MINE_TILE) {
+					drawStar(tileLeft(x) + (tileWidth() / 2), tileTop(y) + (tileWidth() / 2), 8, tileWidth() / 4, 4)
+				} else if (tiles[y][x].value > 0 && tiles[y][x].value < 9) {
+					canvas2d.font = "bold 15px David";
+					canvas2d.fillStyle = NUMBER_COLORS[tiles[y][x].value - 1];
+					canvas2d.textAlign = "center";
+					canvas2d.textBaseline = "middle";
+					canvas2d.fillText(tiles[y][x].value, tileLeft(x) + (tileWidth() / 2), tileTop(y) + (tileHeight() / 2));
+				}
+			}
+			
+			function draw() {
+				canvas2d.clearRect(0, 0, frameWidth, frameHeight);
+				
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						drawTile(x, y);
+					}
+				}
+			}
+			
+			function reveal(x, y, force) {
+				if (!checkBounds(x, y)) {
+					return;
+				}
+				
+				if (!tiles[y][x].isCovered) {
+					return;
+				}
+				
+				if (tiles[y][x].value == MINE_TILE) {
+					return;
+				}
+				
+				tiles[y][x].isCovered = false;
+				
+				if (tiles[y][x].value == EMPTY_TILE) {
+					reveal(x + 1, y);
+					reveal(x - 1, y);
+					reveal(x, y + 1);
+					reveal(x, y - 1);
+					reveal(x + 1, y + 1);
+					reveal(x - 1, y - 1);
+					reveal(x + 1, y - 1);
+					reveal(x - 1, y + 1);
+				}
+			}
+			
+			function tileLeftClicked(x, y) {
+				if (tiles[y][x].withFlag) {
+					return;
+				}
+				
+				if (tiles[y][x].value != MINE_TILE) {
+					reveal(x, y);
+					return;
+				}
+				
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						tiles[y][x].isCovered = false;
+					}
+				}
+				
+				setTimeout(function() {
+					alert("fail");
+					startNewGame();
+				}, 1);
+				
+			}
+			
+			function tileRightClicked(x, y) {
+				if (!tiles[y][x].isCovered) {
+					return;
+				}
+				
+				tiles[y][x].withFlag = !tiles[y][x].withFlag;
+			}
+			
+			function handleClick(event) {
+				let rect = event.target.getBoundingClientRect();
+				let x = event.clientX - rect.left;
+				let y = event.clientY - rect.top;
+				let tileX = Math.floor(x / (frameWidth / columns));
+				let tileY = Math.floor(y / (frameHeight / rows));
+				
+				if (event.button == RIGHT_BUTTON) {
+					tileRightClicked(tileX, tileY);
+				} else {
+					tileLeftClicked(tileX, tileY);
+				}
+				
+				draw();
+			}
+			
+			function startNewGame() {
+				rows = document.getElementById("rows").valueAsNumber
+				columns = document.getElementById("columns").valueAsNumber
+				minesCount = document.getElementById("mines").valueAsNumber
+				
+				if (rows < 2 || rows > 500 || columns < 2 || columns > 500) {
+					alert("Invalid number of rows or columns");
+					return;
+				}
+				
+				if (minesCount > (rows * columns)) {
+					alert("Too many mines");
+					return;
+				}
+				
+				initialize();
+				putMines(minesCount);
+				numberTiles();
+				
+				setTimeout(function() {
+					canvas.height = rows * 30;
+					canvas.width = columns * 30;
+					frameWidth = canvas.width
+					frameHeight = canvas.height
+					draw();
+				}, 1);
+			}
+			
+			function main() {
+				startNewGame();
+				
+				document.getElementById("start").onclick = function(event) {
+					startNewGame();
+				};
+				
+				canvas.onclick = function(event) {
+					handleClick(event);
+				};
+				
+				canvas.oncontextmenu = function(event) { 
+					event.preventDefault(); 
+					event.stopPropagation();
+					handleClick(event);
+				}
+			}
+			
+			main();
+		</script>
+	</body>
+</html>
