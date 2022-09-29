@@ -25,13 +25,16 @@
 			const TILES_GAP = 45;
 			const USER_CODE = 1;
 			const COMPUTER_CODE = 2;
+			const DRAW_CODE = 3;
 			const EMPTY_TILE = 0;
 			const INVALID_TILE = -100;
 			const ROW_ORIENTATION = 1;
 			const COLUMN_ORIENTATION = 2;
-			const DIAGONAL_ORIENTATION1 = 3;
-			const DIAGONAL_ORIENTATION2 = 4;
-
+			const POSITIVE_DIAGONAL_ORIENTATION = 3;
+			const NEGATIVE_DIAGONAL_ORIENTATION2 = 4;
+			const INFINITY_RANK = 1000000;
+			const LINE_LENGTH = 4;
+			
 			const canvas = document.getElementById("canvas");
 			const canvas2d = canvas.getContext("2d");
 			
@@ -39,7 +42,7 @@
 			let frameHeight = canvas.height;
 			let rows = 6;
 			let columns = 7;
-			let playerTurn = USER_CODE;
+			let playerTurn;
 			
 			function randomInt(max) {
 				return Math.floor(Math.random() * max);
@@ -57,16 +60,12 @@
 				return tiles[position.y][position.x];
 			}
 			
-			function changePosition(position, offsetX, offsetY) {
-				return newPosition(position.x + offsetX, position.y + offsetY);
-			}
-			
 			function changePositionOrientally(position, orientation, offset) {
 				if (orientation == ROW_ORIENTATION) {
 					return newPosition(position.x + offset, position.y);
 				} else if (orientation == COLUMN_ORIENTATION) {
 					return newPosition(position.x, position.y + offset);
-				} else if (orientation == DIAGONAL_ORIENTATION1) {
+				} else if (orientation == POSITIVE_DIAGONAL_ORIENTATION) {
 					return newPosition(position.x + offset, position.y + offset);
 				} else {
 					return newPosition(position.x + offset, position.y - offset);
@@ -161,7 +160,6 @@
 				canvas2d.fillStyle = "black";
 				canvas2d.textAlign = "center";
 				canvas2d.textBaseline = "middle";
-				canvas2d.fillText(x + " : " + y , tileLeft(x) + (tileWidth() / 2), tileTop(y) + (tileHeight() / 2));
 					
 			}
 			
@@ -187,7 +185,7 @@
 				}
 			}
 			
-			function getEmptyTileForColumn(tiles, x) {
+			function getTopRowForColumn(tiles, x) {
 				let y = 0;
 				
 				while (!isOutside(newPosition(x, y)) && (tiles[y][x] != EMPTY_TILE)) {
@@ -198,7 +196,7 @@
 			}
 			
 			function dropPiece(tiles, x, playerCode) {
-				let y = getEmptyTileForColumn(tiles, x);
+				let y = getTopRowForColumn(tiles, x);
 				
 				if (isOutside(newPosition(x, y))) {
 					return false;
@@ -219,6 +217,137 @@
 				return length;
 			}
 			
+			function isPlayerWin(tiles, playerCode) {
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns; x++) {
+						let position = newPosition(x, y);
+						
+						if (getLineLength(tiles, position, playerCode, ROW_ORIENTATION) > 3 ||
+							getLineLength(tiles, position, playerCode, COLUMN_ORIENTATION) > 3 ||
+							getLineLength(tiles, position, playerCode, POSITIVE_DIAGONAL_ORIENTATION) > 3 ||
+							getLineLength(tiles, position, playerCode, NEGATIVE_DIAGONAL_ORIENTATION2) > 3) {
+							return true;
+						}
+					}
+				}
+				
+				return false;
+			}
+			
+			function isDraw(tiles) {
+				for (let x = 0; x < columns; x++) {
+					let y = getTopRowForColumn(tiles, x);
+				
+					if (!isOutside(newPosition(x, y))) {
+						return false;
+					}
+				}
+				
+				return true;
+			}
+			
+			function getLine(tiles, position, orientation) {
+				let line = [0, 0, 0, 0];
+				
+				for (let i = 0; i < LINE_LENGTH; i++) {
+					line[i] = tiles[position.y][position.x];
+					position = changePositionOrientally(position, orientation, 1);
+				}
+				
+				return line;
+			}
+			
+			function countTileInLine(line, tileCode) {
+				let count = 0;
+				
+				for (let i = 0; i < line.length; i++) {
+					if (line[i] == tileCode) {
+						count = count + 1;
+					}
+				}
+				
+				return count;
+			}
+			
+			function evaluateLine(line, playerCode) {
+				let emptyCount = countTileInLine(line, EMPTY_TILE);
+				let playerCount = countTileInLine(line, playerCode);
+				let opponentCount = countTileInLine(line, playerCode == COMPUTER_CODE ? USER_CODE : COMPUTER_CODE);
+				
+				let rank = 0;
+				
+				if (playerCount == 4) {
+					rank += INFINITY_RANK;
+				}
+				
+				if (playerCount == 3 && emptyCount == 1) {
+					rank += 5;
+				}
+				
+				if (playerCount == 2 && emptyCount == 2) {
+					rank += 2;
+				}
+				
+				if (opponentCount == 3 && emptyCount == 1) {
+					rank -= 4;
+				}
+				
+				if (opponentCount == 4) {
+					rank -= INFINITY_RANK;
+				}
+				
+				return rank;
+			}
+			
+			function evaluateBoard(tiles, playerCode) {
+				let rank = 0;
+				let middleColumn = Math.floor(columns / 2)
+				
+				for (let y = 0; y < rows; y++) {
+					if (tiles[y][middleColumn] == playerCode) {
+						rank += 1;
+					}
+				}
+				
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < columns - (LINE_LENGTH - 1); x++) {
+						let position = newPosition(x, y);
+						let line = getLine(tiles, position, ROW_ORIENTATION);
+						let lineRank = evaluateLine(line, playerCode);
+						rank += lineRank;
+					}
+				}
+				
+				for (let y = 0; y < rows - (LINE_LENGTH - 1); y++) {
+					for (let x = 0; x < columns; x++) {
+						let position = newPosition(x, y);
+						let line = getLine(tiles, position, COLUMN_ORIENTATION);
+						let lineRank = evaluateLine(line, playerCode);
+						rank += lineRank;
+					}
+				}
+				
+				for (let y = 0; y < rows - (LINE_LENGTH - 1); y++) {
+					for (let x = 0; x < columns - (LINE_LENGTH - 1); x++) {
+						let position = newPosition(x, y);
+						let line = getLine(tiles, position, POSITIVE_DIAGONAL_ORIENTATION);
+						let lineRank = evaluateLine(line, playerCode);
+						rank += lineRank;
+					}
+				}
+				
+				for (let y = rows - (LINE_LENGTH - 1); y < rows; y++) {
+					for (let x = 0; x < columns - (LINE_LENGTH - 1); x++) {
+						let position = newPosition(x, y);
+						let line = getLine(tiles, position, NEGATIVE_DIAGONAL_ORIENTATION2);
+						let lineRank = evaluateLine(line, playerCode);
+						rank += lineRank;
+					}
+				}
+				
+				return rank;
+			}
+			
 			function cloneTiles(tiles) {
 				let result = []
 				
@@ -235,98 +364,95 @@
 				return result;
 			}
 			
+			function minimax(tiles, depth, maximizingPlayer, playerCode) {
+				let result = {
+					rank: 0,
+					column: 0
+				};
+				
+				if (depth == 0 || isPlayerWin(tiles, maximizingPlayer ? USER_CODE : COMPUTER_CODE)) {
+					result.rank = evaluateBoard(tiles, playerCode);
+					return result;
+				}
+				
+				if (maximizingPlayer) {
+					result.rank = -INFINITY_RANK;
+					
+					for (let x = 0; x < columns; x++) {
+						let candidate = cloneTiles(tiles);
+						
+						if (!dropPiece(candidate, x, COMPUTER_CODE)) {
+							continue;
+						}
+						
+						let move = minimax(candidate, depth - 1, false, playerCode);
+						
+						if (move.rank > result.rank) {
+							result.rank = move.rank;
+							result.column = x;
+						}
+					}
+					
+					return result;
+				} else {
+					result.rank = INFINITY_RANK;
+					
+					for (let x = 0; x < columns; x++) {
+						let candidate = cloneTiles(tiles);
+						
+						if (!dropPiece(candidate, x, USER_CODE)) {
+							continue;
+						}
+						
+						let move = minimax(candidate, depth - 1, true, playerCode);
+						
+						if (move.rank < result.rank) {
+							result.rank = move.rank;
+							result.column = x;
+						}
+					}
+					
+					return result;
+				}
+			}
+			
+			function doComputerMove(tiles, depth) {
+				let ranks = minimax(tiles, depth, true, COMPUTER_CODE);
+				dropPiece(tiles, ranks.column, COMPUTER_CODE);
+				switchTurn();
+				draw(tiles);
+			}
+			
 			function check(tiles) {
-				let someoneWon = false;
+				let winCode = 0;
 				
 				if (isPlayerWin(tiles, USER_CODE)) {
-					alert("User win");
-					someoneWon = true;
+					winCode = USER_CODE;
 				}
 				
 				if (isPlayerWin(tiles, COMPUTER_CODE)) {
-					alert("Computer win");
-					someoneWon = true;
+					winCode = COMPUTER_CODE;
 				}
 				
-				if (someoneWon) {
-					startNewGame();
+				if (isDraw(tiles)) {
+					winCode = DRAW_CODE;
 				}
-			}
-			
-			function isPlayerWin(tiles, playerCode) {
-				for (let y = 0; y < rows; y++) {
-					for (let x = 0; x < columns; x++) {
-						let position = newPosition(x, y);
+				
+				if (winCode != 0) {
+					setTimeout(function() {
+						if (winCode == USER_CODE) {
+							alert("User win");
+						} else if (winCode == COMPUTER_CODE) {
+							alert("Computer win");
+						} else if (winCode == DRAW_CODE) {
+							alert("Draw");
+						}
 						
-						if (getLineLength(tiles, position, playerCode, ROW_ORIENTATION) > 3 ||
-							getLineLength(tiles, position, playerCode, COLUMN_ORIENTATION) > 3 ||
-							getLineLength(tiles, position, playerCode, DIAGONAL_ORIENTATION1) > 3 ||
-							getLineLength(tiles, position, playerCode, DIAGONAL_ORIENTATION2) > 3) {
-							return true;
-						}
-					}
+						startNewGame();
+					}, 1);
 				}
 				
-				return false;
-			}
-			
-			function rankMove(tiles, x, level, maxDepth) {
-				if (level > maxDepth) {
-					return 100;
-				}
-				
-				let candidate = cloneTiles(tiles);
-				
-				if (!dropPiece(candidate, x, COMPUTER_CODE)) {
-					return -100;
-				}
-				
-				for (let x2 = 0; x2 < columns; x2++) {
-					let candidate2 = cloneTiles(candidate);
-					
-					if (!dropPiece(candidate2, x2, USER_CODE)) {
-						continue;
-					}
-					
-					if (isPlayerWin(candidate2, USER_CODE)) {
-						return -100;
-					}
-					
-					let allBad = true;
-					
-					for (let x3 = 0; x3 < columns; x3++) {
-						if (rankMove(candidate2, x3, level + 1, maxDepth) == 100) {
-							allBad = false;
-						}
-					}
-					
-					if (allBad) {
-						return -100;
-					}
-				}
-				
-				return 100;
-			}
-			
-			function doComputerMove(tiles) {
-				let seed = randomInt(columns);
-				
-				for (let x = 0; x < columns; x++) {
-					let column = (x + seed) % columns;
-					
-					if (rankMove(tiles, column, 1, 3) == -100) {
-						continue
-					}
-					
-					dropPiece(tiles, column, COMPUTER_CODE);
-					switchTurn();
-					draw(tiles);
-					return;
-				}
-				
-				dropPiece(tiles, seed, COMPUTER_CODE);
-				switchTurn();
-				draw(tiles);
+				return winCode != 0;
 			}
 			
 			function handleClick(event, tiles) {
@@ -337,8 +463,12 @@
 				
 				dropPiece(tiles, x, USER_CODE);
 				
+				if (check(tiles)) {
+					return;
+				}
+				
 				switchTurn(tiles);
-				doComputerMove(tiles);
+				doComputerMove(tiles, 5);
 				draw(tiles);
 				check(tiles);
 			}
@@ -348,6 +478,7 @@
 				canvas.width = columns * 150;
 				frameWidth = canvas.width;
 				frameHeight = canvas.height;
+				playerTurn = USER_CODE;
 				
 				let tiles = initialize();
 				
